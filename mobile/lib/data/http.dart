@@ -7,7 +7,8 @@ import 'config.dart';
 class HttpResult {
   final Uint8List bytes;
   final DateTime? lastModified; // instant (UTC)
-  HttpResult(this.bytes, this.lastModified);
+  final String cookies; // cookies reçus (« nom=valeur; … »)
+  HttpResult(this.bytes, this.lastModified, [this.cookies = '']);
 }
 
 class FetchException implements Exception {
@@ -18,14 +19,20 @@ class FetchException implements Exception {
 }
 
 /// Téléchargement simple avec délai maximal et un nouvel essai en cas de coupure.
-Future<HttpResult> fetchBytes(String url, {Duration timeout = const Duration(seconds: 20), int retries = 1}) async {
+Future<HttpResult> fetchBytes(String url,
+    {Duration timeout = const Duration(seconds: 20),
+    int retries = 1,
+    String method = 'GET',
+    Map<String, String> headers = const {}}) async {
   Object? last;
   for (var attempt = 0; attempt <= retries; attempt++) {
     final client = HttpClient()..connectionTimeout = timeout;
     client.userAgent = kUserAgent;
     try {
-      final req = await client.getUrl(Uri.parse(url)).timeout(timeout);
+      final req = await client.openUrl(method, Uri.parse(url)).timeout(timeout);
       req.headers.set(HttpHeaders.cacheControlHeader, 'no-cache');
+      headers.forEach(req.headers.set);
+      if (method != 'GET') req.contentLength = 0;
       final resp = await req.close().timeout(timeout);
       if (resp.statusCode != 200) {
         await resp.drain<void>();
@@ -42,7 +49,11 @@ Future<HttpResult> fetchBytes(String url, {Duration timeout = const Duration(sec
           lm = null;
         }
       }
-      return HttpResult(builder.takeBytes(), lm);
+      var cookies = '';
+      try {
+        cookies = resp.cookies.map((c) => '${c.name}=${c.value}').join('; ');
+      } catch (_) {}
+      return HttpResult(builder.takeBytes(), lm, cookies);
     } on FetchException catch (e) {
       last = e;
     } on SocketException {

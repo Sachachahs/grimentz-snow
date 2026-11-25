@@ -9,6 +9,7 @@ import '../util/format.dart';
 import '../util/json.dart';
 import 'config.dart';
 import 'http.dart';
+import 'station.dart';
 
 /// Source unique des données de l'application.
 ///
@@ -26,6 +27,11 @@ class DataRepository extends ChangeNotifier {
 
   Directory? _dir;
   Timer? _timer;
+
+  /// Lecture directe de la station par le téléphone (quand le serveur de données n'y a pas accès).
+  StationRaw? station;
+  String? stationError;
+  bool get stationDirect => data?['domain']['direct'].b ?? false;
 
   Future<Directory> get dir async {
     if (_dir != null) return _dir!;
@@ -55,6 +61,9 @@ class DataRepository extends ChangeNotifier {
           downloadedAt = fromEpoch(J(jsonDecode(await m.readAsString()))['downloaded'].d);
         }
       }
+      final st = await _file('station.json');
+      if (await st.exists()) station = StationRaw.fromJson(jsonDecode(await st.readAsString()));
+      _applyStation();
       final e = await _file('events.json');
       if (await e.exists()) events = J(jsonDecode(await e.readAsString())).list;
     } catch (_) {
@@ -115,6 +124,8 @@ class DataRepository extends ChangeNotifier {
         data = parsed;
         await (await _file('data.json')).writeAsString(text);
       }
+      await _refreshStation();
+      _applyStation();
       downloadedAt = zurichNow();
       await (await _file('meta.json'))
           .writeAsString(jsonEncode({'downloaded': DateTime.now().millisecondsSinceEpoch / 1000}));
@@ -137,6 +148,39 @@ class DataRepository extends ChangeNotifier {
     } finally {
       loading = false;
       notifyListeners();
+    }
+  }
+
+  /// Vrai si le serveur de données n'a pas pu lire la station (le téléphone la lit alors lui-même).
+  bool get _needsStation {
+    final d = data;
+    if (d == null) return false;
+    return d['sources_status']['station']['ok'].v != true || d['domain'].isNull;
+  }
+
+  Future<void> _refreshStation() async {
+    if (!_needsStation) return;
+    final last = station == null ? null : fromEpoch(station!.fetchedAt);
+    if (last != null && zurichNow().difference(last).inMinutes < 8) return;
+    try {
+      station = await fetchStation();
+      stationError = null;
+      await (await _file('station.json')).writeAsString(jsonEncode(station!.toJson()));
+    } catch (e) {
+      stationError = e is FetchException ? e.message : 'Station injoignable';
+    }
+  }
+
+  void _applyStation() {
+    final d = data;
+    final raw = station;
+    if (d == null || raw == null || !_needsStation) return;
+    final map = d.v;
+    if (map is! Map<String, dynamic>) return;
+    try {
+      applyStation(map, raw);
+    } catch (_) {
+      stationError = 'Données de la station illisibles';
     }
   }
 

@@ -219,7 +219,12 @@ class _Status extends StatelessWidget {
       row('Serveur de données', g != null, g == null ? 'aucune donnée' : 'publication ${whenText(g)}'),
       row('MétéoSuisse', ms.isNull ? null : ms['ok'].b,
           ms['ok'].b ? 'run ${parseLocal(ms['run'].s) == null ? '' : hm(parseLocal(ms['run'].s)!)}' : (ms['error'].s ?? 'indisponible')),
-      row('Station (Info live)', sta.isNull ? null : sta['ok'].b, sta['ok'].b ? 'à jour' : (sta['error'].s ?? 'indisponible')),
+      if (repo.stationDirect && repo.station != null)
+        row('Station (Info live)', repo.stationError == null,
+            'lue directement par le téléphone ${whenText(fromEpoch(repo.station!.fetchedAt)!)}${repo.stationError == null ? '' : ' (${repo.stationError})'}')
+      else
+        row('Station (Info live)', sta.isNull ? null : sta['ok'].b,
+            sta['ok'].b ? 'à jour' : (repo.stationError ?? sta['error'].s ?? 'indisponible')),
       row('Webcams', cams.isNull ? null : (cams['ok'].i ?? 0) > 0, '${cams['ok'].i ?? 0} / ${cams['total'].i ?? 0} disponibles'),
       row('Téléphone', repo.error == null, repo.error ?? (repo.downloadedAt == null ? '' : 'téléchargé ${whenText(repo.downloadedAt!)}')),
     ]);

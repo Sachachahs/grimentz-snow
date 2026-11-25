@@ -83,7 +83,15 @@ def ios():
     print("iOS : nom et icônes réglés")
 
 
+def icons():
+    if not (ICONS / "icon_1024.png").exists() or not (ICONS / "android").exists():
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import make_icons
+        make_icons.main()
+
+
 if __name__ == "__main__":
+    icons()
     android()
     ios()
     sys.exit(0)
