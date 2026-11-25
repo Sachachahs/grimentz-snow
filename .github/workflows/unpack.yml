@@ -1,0 +1,38 @@
+# Décompresse GrimentzSnowMobile.zip (déposé à la racine du dépôt) puis lance le backend et la compilation.
+name: Décompresser le projet
+
+on:
+  push:
+    branches: [main]
+    paths: ["*.zip"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  unpack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Décompresser
+        run: |
+          ZIP=$(ls *.zip | head -1)
+          unzip -q -o "$ZIP" -d /tmp/u
+          SRC=/tmp/u
+          if [ -d /tmp/u/GrimentzSnowMobile ]; then SRC=/tmp/u/GrimentzSnowMobile; fi
+          rm -rf "$SRC/.github" "$SRC/github-workflows"
+          cp -a "$SRC"/. .
+          git rm -q --cached "$ZIP" && rm -f "$ZIP"
+          git config user.name "grimentz-snow-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -qm "Projet décompressé depuis $ZIP"
+          git push -q
+      - name: Lancer le backend et la compilation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run data.yml --ref main
+          gh workflow run build-app.yml --ref main
