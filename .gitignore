@@ -1,0 +1,17 @@
+# Flutter / Dart
+mobile/.dart_tool/
+mobile/build/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/pubspec.lock
+mobile/*.iml
+mobile/.idea/
+# dossiers natifs générés par « flutter create » (voir mobile/tool/setup_platforms.py)
+mobile/android/
+mobile/ios/
+# Backend
+backend/.cache/
+out/
+dist/
+__pycache__/
+*.pyc
