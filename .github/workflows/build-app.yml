@@ -15,6 +15,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 concurrency:
   group: build-app
@@ -83,6 +85,34 @@ jobs:
             --title "Grimentz Snow – version 1.0.${{ github.run_number }}" \
             --notes "Installer **GrimentzSnow.apk** sur le téléphone Android (autoriser l'installation depuis cette source si Android le demande). GrimentzSnow-debug.apk : version de diagnostic. Données : $DATA_URL" \
             --target ${{ github.sha }}
+
+  # Simulateur : la même application compilée pour le navigateur, publiée sur GitHub Pages
+  # (https://<compte>.github.io/<dépôt>/simulator.html).
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}simulator.html
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Générer le dossier web
+        run: flutter create --org ch.grimentzsnow --project-name grimentz_snow --platforms=web .
+      - run: flutter pub get
+      - name: Compilation web
+        run: flutter build web --release --base-href "/${{ github.event.repository.name }}/" --dart-define=DATA_URL=https://raw.githubusercontent.com/${{ github.repository }}/data/data.json --dart-define=APP_VERSION=1.0.${{ github.run_number }}
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: mobile/build/web
+      - id: deploy
+        uses: actions/deploy-pages@v4
 
   ios:
     if: github.event_name == 'workflow_dispatch' && inputs.ios
