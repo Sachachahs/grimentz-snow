@@ -1,0 +1,16 @@
+{
+ "generated_at": "2026-11-28T15:23:39",
+ "meteoswiss": {
+  "ok": true,
+  "error": null,
+  "run": "2026-11-28T15:00:00"
+ },
+ "station": {
+  "ok": false,
+  "error": "Erreur HTTP 403"
+ },
+ "webcams": {
+  "ok": 7,
+  "total": 7
+ }
+}
